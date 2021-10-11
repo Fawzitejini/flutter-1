@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(gspencergoog): Remove this tag once this test's state leaks/test
+// dependencies have been fixed.
+// https://github.com/flutter/flutter/issues/85160
+// Fails with "flutter test --test-randomize-ordering-seed=123"
+@Tags(<String>['no-shuffle'])
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -1831,7 +1837,7 @@ void main() {
     expect(onDragCompletedCalled, isTrue);
   });
 
-  testWidgets('Drag and drop - allow pass thru of unaccepted data test', (WidgetTester tester) async {
+  testWidgets('Drag and drop - allow pass through of unaccepted data test', (WidgetTester tester) async {
     final List<int> acceptedInts = <int>[];
     final List<DragTargetDetails<int>> acceptedIntsDetails = <DragTargetDetails<int>>[];
     final List<double> acceptedDoubles = <double>[];
@@ -1965,7 +1971,7 @@ void main() {
     expect(find.text('DoubleDragging'), findsNothing);
   });
 
-  testWidgets('Drag and drop - allow pass thru of unaccepted data twice test', (WidgetTester tester) async {
+  testWidgets('Drag and drop - allow pass through of unaccepted data twice test', (WidgetTester tester) async {
     final List<DragTargetData> acceptedDragTargetDatas = <DragTargetData>[];
     final List<DragTargetDetails<DragTargetData>> acceptedDragTargetDataDetails = <DragTargetDetails<DragTargetData>>[];
     final List<ExtendedDragTargetData> acceptedExtendedDragTargetDatas = <ExtendedDragTargetData>[];
@@ -3057,7 +3063,6 @@ void main() {
         home: Column(
           children: const <Widget>[
             Draggable<int>(
-              hitTestBehavior: hitTestBehavior,
               feedback: SizedBox(height: 50.0, child: Text('Draggable')),
               child: SizedBox(height: 50.0, child: Text('Target')),
             ),
@@ -3097,7 +3102,7 @@ void main() {
     expect(const LongPressDraggable<int>(child: widget1, feedback: widget2), isA<Draggable<int>>());
     expect(const LongPressDraggable<int>(child: widget1, feedback: widget2).child, widget1);
     expect(const LongPressDraggable<int>(child: widget1, feedback: widget2).feedback, widget2);
-    expect(const LongPressDraggable<int>(child: widget1, feedback: widget2, dragAnchor: DragAnchor.child).dragAnchor, DragAnchor.child);
+    expect(const LongPressDraggable<int>(child: widget1, feedback: widget2).dragAnchor, DragAnchor.child);
     expect(const LongPressDraggable<int>(child: widget1, feedback: widget2, dragAnchor: DragAnchor.pointer).dragAnchor, DragAnchor.pointer);
     expect(LongPressDraggable<int>(child: widget1, feedback: widget2, dragAnchorStrategy: dummyStrategy).dragAnchorStrategy, dummyStrategy);
   });

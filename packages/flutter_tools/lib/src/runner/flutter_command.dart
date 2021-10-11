@@ -91,10 +91,8 @@ class FlutterCommandResult {
         return 'fail';
       case ExitStatus.killed:
         return 'killed';
-      default:
-        assert(false);
-        return null;
     }
+    return null; // dead code, remove with null safety migration
   }
 }
 
@@ -120,6 +118,13 @@ class FlutterOptions {
   static const String kDeferredComponents = 'deferred-components';
   static const String kAndroidProjectArgs = 'android-project-arg';
   static const String kInitializeFromDill = 'initialize-from-dill';
+}
+
+/// flutter command categories for usage.
+class FlutterCommandCategory {
+  static const String sdk = 'Flutter SDK';
+  static const String project = 'Project';
+  static const String tools = 'Tools & Devices';
 }
 
 abstract class FlutterCommand extends Command<void> {
@@ -159,7 +164,6 @@ abstract class FlutterCommand extends Command<void> {
   @override
   ArgParser get argParser => _argParser;
   final ArgParser _argParser = ArgParser(
-    allowTrailingOptions: false,
     usageLineLength: globals.outputPreferences.wrapText ? globals.outputPreferences.wrapColumn : null,
   );
 
@@ -188,8 +192,6 @@ abstract class FlutterCommand extends Command<void> {
 
   bool _excludeDebug = false;
   bool _excludeRelease = false;
-
-  BuildMode _defaultBuildMode;
 
   void requiresPubspecYaml() {
     _requiresPubspecYaml = true;
@@ -760,7 +762,7 @@ abstract class FlutterCommand extends Command<void> {
       FlutterOptions.kEnableExperiment,
       help:
         'The name of an experimental Dart feature to enable. For more information see: '
-        'https://github.com/dart-lang/sdk/blob/master/docs/process/experimental-flags.md',
+        'https://github.com/dart-lang/sdk/blob/main/docs/process/experimental-flags.md',
       hide: hide,
     );
   }
@@ -834,9 +836,11 @@ abstract class FlutterCommand extends Command<void> {
     usesTrackWidgetCreation(verboseHelp: verboseHelp);
   }
 
-  set defaultBuildMode(BuildMode value) {
-    _defaultBuildMode = value;
-  }
+  /// The build mode that this command will use if no build mode is
+  /// explicitly specified.
+  ///
+  /// Use [getBuildMode] to obtain the actual effective build mode.
+  BuildMode defaultBuildMode;
 
   BuildMode getBuildMode() {
     // No debug when _excludeDebug is true.
@@ -866,7 +870,7 @@ abstract class FlutterCommand extends Command<void> {
     if (jitReleaseResult) {
       return BuildMode.jitRelease;
     }
-    return _defaultBuildMode;
+    return defaultBuildMode;
   }
 
   void usesFlavorOption() {

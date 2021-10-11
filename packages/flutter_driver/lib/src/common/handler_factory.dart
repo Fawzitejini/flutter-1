@@ -9,10 +9,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_driver/driver_extension.dart';
-import 'package:flutter_driver/src/extension/wait_conditions.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../driver_extension.dart';
+import '../extension/wait_conditions.dart';
 import 'diagnostics_tree.dart';
 import 'error.dart';
 import 'find.dart';
@@ -367,7 +367,7 @@ mixin CommandHandlerFactory {
     final Duration pause = scrollCommand.duration ~/ totalMoves;
     final Offset startLocation = _prober.getCenter(target);
     Offset currentLocation = startLocation;
-    final TestPointer pointer = TestPointer(1);
+    final TestPointer pointer = TestPointer();
     _prober.binding.handlePointerEvent(pointer.down(startLocation));
     await Future<void>.value(); // so that down and move don't happen in the same microtask
     for (int moves = 0; moves < totalMoves; moves += 1) {

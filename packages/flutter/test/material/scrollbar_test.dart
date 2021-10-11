@@ -2,6 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// TODO(gspencergoog): Remove this tag once this test's state leaks/test
+// dependencies have been fixed.
+// https://github.com/flutter/flutter/issues/85160
+// Fails with "flutter test --test-randomize-ordering-seed=382757700"
+@Tags(<String>['no-shuffle'])
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart';
@@ -1089,7 +1095,6 @@ void main() {
             behavior: const NoScrollbarBehavior(),
             child: Scrollbar(
               key: key2,
-              notificationPredicate: null,
               child: SingleChildScrollView(
                 key: outerKey,
                 child: SizedBox(
@@ -1099,7 +1104,6 @@ void main() {
                     children: <Widget>[
                       Scrollbar(
                         key: key1,
-                        notificationPredicate: null,
                         child: SizedBox(
                           height: 300.0,
                           width: double.infinity,
@@ -1540,8 +1544,8 @@ void main() {
           color: Colors.transparent,
         )
         ..line(
-          p1: Offset.zero,
-          p2: const Offset(0.0, 600.0),
+          p1: const Offset(4.0, 0.0),
+          p2: const Offset(4.0, 600.0),
           strokeWidth: 1.0,
           color: Colors.transparent,
         )

@@ -209,7 +209,7 @@ abstract class SliverChildDelegate {
   }
 }
 
-class _SaltedValueKey extends ValueKey<Key>{
+class _SaltedValueKey extends ValueKey<Key> {
   const _SaltedValueKey(Key key): assert(key != null), super(key);
 }
 
@@ -752,7 +752,7 @@ class SliverChildListDelegate extends SliverChildDelegate {
 ///
 /// * [KeepAlive], which marks whether its child widget should be kept alive.
 /// * [SliverChildBuilderDelegate] and [SliverChildListDelegate], slivers
-///    which make usr of the keep alive functionality through the
+///    which make use of the keep alive functionality through the
 ///    `addAutomaticKeepAlives` property.
 /// * [SliverGrid] and [SliverList], two sliver widgets that are commonly
 ///    wrapped with [KeepAlive] widgets to preserve their sliver child subtrees.

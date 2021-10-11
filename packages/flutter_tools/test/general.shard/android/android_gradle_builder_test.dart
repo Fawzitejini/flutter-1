@@ -101,7 +101,6 @@ void main() {
                 String line,
                 FlutterProject project,
                 bool usesAndroidX,
-                bool shouldBuildPluginAsAar,
               }) async {
                 handlerCalled = true;
                 return GradleBuildStatus.exit;
@@ -206,7 +205,6 @@ void main() {
                 String line,
                 FlutterProject project,
                 bool usesAndroidX,
-                bool shouldBuildPluginAsAar,
               }) async {
                 return GradleBuildStatus.retry;
               },
@@ -290,7 +288,6 @@ void main() {
                 String line,
                 FlutterProject project,
                 bool usesAndroidX,
-                bool shouldBuildPluginAsAar,
               }) async {
                 handlerCalled = true;
                 return GradleBuildStatus.exit;
@@ -410,7 +407,6 @@ void main() {
           '-Ptree-shake-icons=false',
           'assembleRelease',
         ],
-        exitCode: 0,
       ));
 
       fileSystem.directory('android')
@@ -454,7 +450,6 @@ void main() {
               String line,
               FlutterProject project,
               bool usesAndroidX,
-              bool shouldBuildPluginAsAar,
             }) async {
               return GradleBuildStatus.retry;
             },
@@ -499,7 +494,6 @@ void main() {
           '-Pcode-size-directory=foo',
           'assembleRelease',
         ],
-        exitCode: 0,
       ));
 
       fileSystem.directory('android')
@@ -568,117 +562,6 @@ void main() {
           'apk',
         ),
       ));
-    });
-
-    testUsingContext('Can retry gradle build with plugins built as AARs', () async {
-      final AndroidGradleBuilder builder = AndroidGradleBuilder(
-        logger: logger,
-        processManager: processManager,
-        fileSystem: fileSystem,
-        artifacts: Artifacts.test(),
-        usage: testUsage,
-        gradleUtils: FakeGradleUtils(),
-        platform: FakePlatform(),
-      );
-      processManager.addCommand(const FakeCommand(
-        command: <String>[
-          'gradlew',
-          '-q',
-          '-Ptarget-platform=android-arm,android-arm64,android-x64',
-          '-Ptarget=lib/main.dart',
-          '-Pdart-obfuscation=false',
-          '-Ptrack-widget-creation=false',
-          '-Ptree-shake-icons=false',
-          'assembleRelease',
-        ],
-        exitCode: 1,
-        stderr: '\nSome gradle message\n',
-      ));
-      processManager.addCommand(const FakeCommand(
-        command: <String>[
-          'gradlew',
-          '-q',
-          '-Ptarget-platform=android-arm,android-arm64,android-x64',
-          '-Ptarget=lib/main.dart',
-          '-Pdart-obfuscation=false',
-          '-Ptrack-widget-creation=false',
-          '-Ptree-shake-icons=false',
-          '-Dbuild-plugins-as-aars=true',
-          '--settings-file=settings_aar.gradle',
-          'assembleRelease'
-        ],
-        exitCode: 1,
-        stderr: '\nSome gradle message\n',
-      ));
-
-      fileSystem.directory('android')
-        .childFile('build.gradle')
-        .createSync(recursive: true);
-
-      fileSystem.directory('android')
-        .childFile('gradle.properties')
-        .createSync(recursive: true);
-
-      fileSystem.directory('android')
-        .childDirectory('app')
-        .childFile('build.gradle')
-        ..createSync(recursive: true)
-        ..writeAsStringSync('apply from: irrelevant/flutter.gradle');
-
-      int testFnCalled = 0;
-      bool builtPluginAsAar = false;
-      await expectLater(() async {
-       await builder.buildGradleApp(
-          project: FlutterProject.fromDirectoryTest(fileSystem.currentDirectory),
-          androidBuildInfo: const AndroidBuildInfo(
-            BuildInfo(
-              BuildMode.release,
-              null,
-              treeShakeIcons: false,
-            ),
-          ),
-          target: 'lib/main.dart',
-          isBuildingBundle: false,
-          localGradleErrors: <GradleHandledError>[
-            GradleHandledError(
-              test: (String line) {
-                if (line.contains('Some gradle message')) {
-                  testFnCalled++;
-                  return true;
-                }
-                return false;
-              },
-              handler: ({
-                String line,
-                FlutterProject project,
-                bool usesAndroidX,
-                bool shouldBuildPluginAsAar,
-              }) async {
-                if (testFnCalled == 2) {
-                  builtPluginAsAar = shouldBuildPluginAsAar;
-                }
-                return GradleBuildStatus.retryWithAarPlugins;
-              },
-              eventLabel: 'random-event-label',
-            ),
-          ],
-        );
-      }, throwsToolExit(
-        message: 'Gradle task assembleRelease failed with exit code 1'
-      ));
-
-      expect(testFnCalled, equals(2));
-      expect(builtPluginAsAar, isTrue);
-
-      expect(testUsage.events, contains(
-        const TestUsageEvent(
-          'build',
-          'gradle',
-          label: 'gradle-random-event-label-failure',
-          parameters: CustomDimensions(),
-        ),
-      ));
-      expect(processManager, hasNoRemainingExpectations);
     });
 
     testUsingContext('indicates that an APK has been built successfully', () async {
@@ -770,7 +653,6 @@ void main() {
           '-Ptarget-platform=android-arm,android-arm64,android-x64',
           'assembleAarRelease',
         ],
-        exitCode: 0,
       ));
 
       final File manifestFile = fileSystem.file('pubspec.yaml');
@@ -888,7 +770,6 @@ void main() {
           '-Ptree-shake-icons=false',
           'assembleRelease',
         ],
-        exitCode: 0,
       ));
 
       fileSystem.file('out/android_arm/flutter_embedding_release.pom')
@@ -962,7 +843,6 @@ void main() {
           '-Ptree-shake-icons=false',
           'assembleRelease',
         ],
-        exitCode: 0,
       ));
 
       fileSystem.file('out/android_arm64/flutter_embedding_release.pom')
@@ -1036,7 +916,6 @@ void main() {
           '-Ptree-shake-icons=false',
           'assembleRelease',
         ],
-        exitCode: 0,
       ));
 
       fileSystem.file('out/android_x86/flutter_embedding_release.pom')
@@ -1243,7 +1122,6 @@ void main() {
           '-Ptarget-platform=android-arm',
           'assembleAarRelease'
         ],
-        exitCode: 0,
       ));
 
       fileSystem.file('out/android_arm/flutter_embedding_release.pom')
@@ -1328,7 +1206,6 @@ void main() {
           '-Ptarget-platform=android-arm64',
           'assembleAarRelease'
         ],
-        exitCode: 0,
       ));
 
       fileSystem.file('out/android_arm64/flutter_embedding_release.pom')
@@ -1413,7 +1290,6 @@ void main() {
           '-Ptarget-platform=android-x86',
           'assembleAarRelease'
         ],
-        exitCode: 0,
       ));
 
       fileSystem.file('out/android_x86/flutter_embedding_release.pom')
@@ -1498,7 +1374,6 @@ void main() {
           '-Ptarget-platform=android-x64',
           'assembleAarRelease'
         ],
-        exitCode: 0,
       ));
 
       fileSystem.file('out/android_x64/flutter_embedding_release.pom')

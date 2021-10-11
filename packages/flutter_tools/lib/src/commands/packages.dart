@@ -51,6 +51,9 @@ class PackagesCommand extends FlutterCommand {
   final String description = 'Commands for managing Flutter packages.';
 
   @override
+  String get category => FlutterCommandCategory.project;
+
+  @override
   Future<FlutterCommandResult> runCommand() async => null;
 }
 
@@ -139,6 +142,7 @@ class PackagesGetCommand extends FlutterCommand {
         context: PubContext.pubGet,
         directory: directory,
         upgrade: upgrade,
+        shouldSkipThirdPartyGenerator: false,
         offline: boolArg('offline'),
         generateSyntheticPackage: flutterProject.manifest.generateSyntheticPackage,
       );
@@ -249,9 +253,8 @@ class PackagesForwardCommand extends FlutterCommand {
 }
 
 class PackagesPassthroughCommand extends FlutterCommand {
-  PackagesPassthroughCommand() {
-    requiresPubspecYaml();
-  }
+  @override
+  ArgParser argParser = ArgParser.allowAnything();
 
   @override
   String get name => 'pub';
@@ -302,10 +305,11 @@ class PackagesInteractiveGetCommand extends FlutterCommand {
     List<String> rest = argResults.rest;
     final bool isHelp = rest.contains('-h') || rest.contains('--help');
     String target;
-    if (rest.length == 1 && (rest[0].contains('/') || rest[0].contains(r'\'))) {
-      // HACK: Supporting flutter specific behavior where you can pass a
-      //       folder to the command.
-      target = findProjectRoot(globals.fs, rest[0]);
+    if (rest.length == 1 && (rest.single.contains('/') || rest.single.contains(r'\'))) {
+      // For historical reasons, if there is one argument to the command and it contains
+      // a multiple-component path (i.e. contains a slash) then we use that to determine
+      // to which project we're applying the command.
+      target = findProjectRoot(globals.fs, rest.single);
       rest = <String>[];
     } else {
       target = findProjectRoot(globals.fs);

@@ -52,6 +52,18 @@ class HotRunnerConfig {
   Future<bool> setupHotRestart() async {
     return true;
   }
+
+  /// A hook for implementations to perform any necessary initialization prior
+  /// to a hot reload. Should return true if the hot restart should continue.
+  Future<bool> setupHotReload() async {
+    return true;
+  }
+
+  /// A hook for implementations to perform any necessary cleanup after the
+  /// devfs sync is complete. At this point the flutter_tools no longer needs to
+  /// access the source files and assets.
+  void updateDevFSComplete() {}
+
   /// A hook for implementations to perform any necessary operations right
   /// before the runner is about to be shut down.
   Future<void> runPreShutdownOperations() async {
@@ -312,7 +324,7 @@ class HotRunner extends ResidentRunner {
 
       globals.printStatus('Benchmarking hot reload');
       // Measure time to perform a hot reload.
-      await restart(fullRestart: false);
+      await restart();
       if (stayResident) {
         await waitForAppToFinish();
       } else {
@@ -369,6 +381,7 @@ class HotRunner extends ResidentRunner {
             // the native build step. If there is a Dart compilation error, it
             // should only be displayed once.
             suppressErrors: applicationBinary == null,
+            checkDartPluginRegistry: true,
             outputPath: dillOutputPath ??
               getDefaultApplicationKernelPath(
                 trackWidgetCreation: debuggingOptions.buildInfo.trackWidgetCreation,
@@ -398,8 +411,8 @@ class HotRunner extends ResidentRunner {
       targetPlatform: _targetPlatform,
       sdkName: _sdkName,
       emulator: _emulator,
-      fullRestart: null,
-      fastReassemble: null,
+      fullRestart: false,
+      fastReassemble: false,
       overallTimeInMs: appStartedTimer.elapsed.inMilliseconds,
       compileTimeInMs: totalCompileTime.inMilliseconds,
       transferTimeInMs: totalLaunchAppTime.inMilliseconds,
@@ -443,7 +456,7 @@ class HotRunner extends ResidentRunner {
       globals.printTrace('Updating assets');
       final int result = await assetBundle.build(packagesPath: '.packages');
       if (result != 0) {
-        return UpdateFSReport(success: false);
+        return UpdateFSReport();
       }
     }
 
@@ -546,7 +559,12 @@ class HotRunner extends ResidentRunner {
     String reason,
   }) async {
     final Stopwatch restartTimer = Stopwatch()..start();
-    final UpdateFSReport updatedDevFS = await _updateDevFS(fullRestart: true);
+    UpdateFSReport updatedDevFS;
+    try {
+      updatedDevFS = await _updateDevFS(fullRestart: true);
+    } finally {
+      hotRunnerConfig.updateDevFSComplete();
+    }
     if (!updatedDevFS.success) {
       for (final FlutterDevice device in flutterDevices) {
         if (device.generator != null) {
@@ -742,7 +760,7 @@ class HotRunner extends ResidentRunner {
           emulator: emulator,
           fullRestart: true,
           reason: reason,
-          fastReassemble: null,
+          fastReassemble: false,
           overallTimeInMs: restartTimer.elapsed.inMilliseconds,
           syncedBytes: result.updateFSReport?.syncedBytes,
           invalidatedSourcesCount: result.updateFSReport?.invalidatedSourcesCount,
@@ -768,7 +786,7 @@ class HotRunner extends ResidentRunner {
           emulator: emulator,
           fullRestart: true,
           reason: reason,
-          fastReassemble: null,
+          fastReassemble: false,
         ).send();
       }
       status?.cancel();
@@ -818,7 +836,7 @@ class HotRunner extends ResidentRunner {
           emulator: emulator,
           fullRestart: false,
           reason: reason,
-          fastReassemble: null,
+          fastReassemble: false,
         ).send();
       } else {
         HotEvent('exception',
@@ -827,7 +845,7 @@ class HotRunner extends ResidentRunner {
           emulator: emulator,
           fullRestart: false,
           reason: reason,
-          fastReassemble: null,
+          fastReassemble: false,
         ).send();
       }
       return OperationResult(errorCode, errorMessage, fatal: true);
@@ -857,8 +875,16 @@ class HotRunner extends ResidentRunner {
     }
 
     final Stopwatch reloadTimer = _stopwatchFactory.createStopwatch('reloadSources:reload')..start();
+    if (!(await hotRunnerConfig.setupHotReload())) {
+      return OperationResult(1, 'setupHotReload failed');
+    }
     final Stopwatch devFSTimer = Stopwatch()..start();
-    final UpdateFSReport updatedDevFS = await _updateDevFS();
+    UpdateFSReport updatedDevFS;
+    try {
+      updatedDevFS= await _updateDevFS();
+    } finally {
+      hotRunnerConfig.updateDevFSComplete();
+    }
     // Record time it took to synchronize to DevFS.
     bool shouldReportReloadTime = true;
     _addBenchmarkData('hotReloadDevFSSyncMilliseconds', devFSTimer.elapsed.inMilliseconds);
@@ -1116,7 +1142,7 @@ Future<OperationResult> _defaultReloadSourcesHelper(
       emulator: emulator,
       fullRestart: false,
       reason: reason,
-      fastReassemble: null,
+      fastReassemble: false,
     ).send();
     // Reset devFS lastCompileTime to ensure the file will still be marked
     // as dirty on subsequent reloads.
@@ -1428,7 +1454,7 @@ class ProjectFileInvalidator {
       packageConfig = await _createPackageConfig(packagesPath);
       // The frontend_server might be monitoring the package_config.json file,
       // Pub should always produce both files.
-      // TODO(jonahwilliams): remove after https://github.com/flutter/flutter/issues/55249
+      // TODO(zanderso): remove after https://github.com/flutter/flutter/issues/55249
       if (_fileSystem.path.basename(packagesPath) == '.packages') {
         final File packageConfigFile = _fileSystem.file(packagesPath)
           .parent.childDirectory('.dart_tool')

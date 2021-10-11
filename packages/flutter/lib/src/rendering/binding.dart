@@ -100,17 +100,6 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
           return Future<void>.value();
         },
       );
-      registerBoolServiceExtension(
-        name: 'debugCheckElevationsEnabled',
-        getter: () async => debugCheckElevationsEnabled,
-        setter: (bool value) {
-          if (debugCheckElevationsEnabled == value) {
-            return Future<void>.value();
-          }
-          debugCheckElevationsEnabled = value;
-          return _forceRepaint();
-        },
-      );
       registerServiceExtension(
         name: 'debugDumpLayerTree',
         callback: (Map<String, String> parameters) async {
@@ -118,6 +107,36 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
           return <String, Object>{
             'data': data,
           };
+        },
+      );
+      registerBoolServiceExtension(
+        name: 'debugDisableClipLayers',
+        getter: () async => debugDisableClipLayers,
+        setter: (bool value) {
+          if (debugDisableClipLayers == value)
+            return Future<void>.value();
+          debugDisableClipLayers = value;
+          return _forceRepaint();
+        },
+      );
+      registerBoolServiceExtension(
+        name: 'debugDisablePhysicalShapeLayers',
+        getter: () async => debugDisablePhysicalShapeLayers,
+        setter: (bool value) {
+          if (debugDisablePhysicalShapeLayers == value)
+            return Future<void>.value();
+          debugDisablePhysicalShapeLayers = value;
+          return _forceRepaint();
+        },
+      );
+      registerBoolServiceExtension(
+        name: 'debugDisableOpacityLayers',
+        getter: () async => debugDisableOpacityLayers,
+        setter: (bool value) {
+          if (debugDisableOpacityLayers == value)
+            return Future<void>.value();
+          debugDisableOpacityLayers = value;
+          return _forceRepaint();
         },
       );
       return true;
@@ -139,7 +158,7 @@ mixin RendererBinding on BindingBase, ServicesBinding, SchedulerBinding, Gesture
         name: 'debugDumpSemanticsTreeInTraversalOrder',
         callback: (Map<String, String> parameters) async {
           final String data = RendererBinding.instance?.renderView.debugSemantics
-            ?.toStringDeep(childOrder: DebugSemanticsDumpOrder.traversalOrder) ?? 'Semantics not collected.';
+            ?.toStringDeep() ?? 'Semantics not collected.';
           return <String, Object>{
             'data': data,
           };

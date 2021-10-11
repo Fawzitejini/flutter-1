@@ -26,6 +26,9 @@ import 'base/time.dart';
 import 'base/user_messages.dart';
 import 'build_system/build_system.dart';
 import 'cache.dart';
+import 'custom_devices/custom_devices_config.dart';
+import 'device.dart';
+import 'fuchsia/fuchsia_sdk.dart';
 import 'ios/ios_workflow.dart';
 import 'ios/plist_parser.dart';
 import 'ios/xcodeproj.dart';
@@ -46,6 +49,7 @@ BuildSystem? get buildSystem => context.get<BuildSystem>();
 Cache get cache => context.get<Cache>()!;
 CocoaPodsValidator? get cocoapodsValidator => context.get<CocoaPodsValidator>();
 Config get config => context.get<Config>()!;
+DeviceManager? get deviceManager => context.get<DeviceManager>();
 HttpClientFactory? get httpClientFactory => context.get<HttpClientFactory>();
 Logger get logger => context.get<Logger>()!;
 OperatingSystemUtils get os => context.get<OperatingSystemUtils>()!;
@@ -53,6 +57,7 @@ Signals get signals => context.get<Signals>() ?? LocalSignals.instance;
 AndroidStudio? get androidStudio => context.get<AndroidStudio>();
 AndroidSdk? get androidSdk => context.get<AndroidSdk>();
 FlutterVersion get flutterVersion => context.get<FlutterVersion>()!;
+FuchsiaArtifacts? get fuchsiaArtifacts => context.get<FuchsiaArtifacts>();
 Usage get flutterUsage => context.get<Usage>()!;
 XcodeProjectInterpreter? get xcodeProjectInterpreter => context.get<XcodeProjectInterpreter>();
 Xcode? get xcode => context.get<Xcode>();
@@ -218,3 +223,5 @@ FlutterProjectFactory get projectFactory {
     fileSystem: fs,
   );
 }
+
+CustomDevicesConfig get customDevicesConfig => context.get<CustomDevicesConfig>()!;

@@ -4,6 +4,12 @@
 
 // @dart = 2.8
 
+// TODO(gspencergoog): Remove this tag once this test's state leaks/test
+// dependencies have been fixed.
+// https://github.com/flutter/flutter/issues/85160
+// Fails with "flutter test --test-randomize-ordering-seed=1000"
+@Tags(<String>['no-shuffle'])
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -208,6 +214,10 @@ void main() {
       fail('unexpected error output from test:\n\n${result.stderr}\n-- end stderr --\n\n');
     }
     expect(result.exitCode, 0);
+  });
+
+  testWithoutContext('flutter gold skips tests where the expectations are missing', () async {
+    return _testFile('flutter_gold', automatedTestsDirectory, flutterTestDirectory, exitCode: isZero);
   });
 }
 

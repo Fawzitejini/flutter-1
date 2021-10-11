@@ -2,6 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// This file is run as part of a reduced test set in CI on Mac and Windows
+// machines.
+@Tags(<String>['reduced-test-set'])
+
 @TestOn('!chrome')
 import 'dart:ui' as ui show BoxHeightStyle, BoxWidthStyle;
 
@@ -13,24 +17,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../widgets/clipboard_utils.dart';
 import '../widgets/editable_text_utils.dart' show textOffsetToPosition;
 import '../widgets/semantics_tester.dart';
-
-class MockClipboard {
-  dynamic _clipboardData = <String, dynamic>{
-    'text': null,
-  };
-
-  Future<dynamic> handleMethodCall(MethodCall methodCall) async {
-    switch (methodCall.method) {
-      case 'Clipboard.getData':
-        return _clipboardData;
-      case 'Clipboard.setData':
-        _clipboardData = methodCall.arguments;
-        break;
-    }
-  }
-}
 
 class MaterialLocalizationsDelegate extends LocalizationsDelegate<MaterialLocalizations> {
   @override
@@ -126,7 +115,6 @@ double getOpacity(WidgetTester tester, Finder finder) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final MockClipboard mockClipboard = MockClipboard();
-  TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, mockClipboard.handleMethodCall);
 
   const String kThreeLines =
       'First line of text is\n'
@@ -165,9 +153,20 @@ void main() {
 
   setUp(() async {
     debugResetSemanticsIdCounter();
+    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      mockClipboard.handleMethodCall,
+    );
     // Fill the clipboard so that the Paste option is available in the text
     // selection menu.
     await Clipboard.setData(const ClipboardData(text: 'Clipboard data'));
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance!.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      null,
+    );
   });
 
   Widget selectableTextBuilder({
@@ -185,7 +184,7 @@ void main() {
     );
   }
 
-  testWidgets('can use the desktop cut/copy/paste buttons on Mac', (WidgetTester tester) async {
+  testWidgets('can use the desktop cut/copy/paste buttons on desktop', (WidgetTester tester) async {
     final TextEditingController controller = TextEditingController(
       text: 'blah1 blah2',
     );
@@ -241,7 +240,7 @@ void main() {
     await tester.tap(find.text('Paste'));
     await tester.pumpAndSettle();
     expect(controller.text, 'blah1 blah2blah1');
-    expect(controller.selection, const TextSelection(baseOffset: 16, extentOffset: 16));
+    expect(controller.selection, const TextSelection(baseOffset: 16, extentOffset: 16, affinity: TextAffinity.upstream));
 
     // Cut the first word.
     await gesture.down(midBlah1);
@@ -257,7 +256,7 @@ void main() {
     expect(controller.text, ' blah2blah1');
     expect(controller.selection, const TextSelection(baseOffset: 0, extentOffset: 0));
     expect(find.byType(CupertinoButton), findsNothing);
-  }, variant: const TargetPlatformVariant(<TargetPlatform>{ TargetPlatform.macOS, TargetPlatform.windows, TargetPlatform.linux }), skip: kIsWeb);
+  }, variant: TargetPlatformVariant.desktop(), skip: kIsWeb); // [intended] toolbar is handled by the browser.
 
   testWidgets('has expected defaults', (WidgetTester tester) async {
     await tester.pumpWidget(
@@ -278,7 +277,7 @@ void main() {
   testWidgets('Rich selectable text has expected defaults', (WidgetTester tester) async {
     await tester.pumpWidget(
       const MediaQuery(
-        data: MediaQueryData(devicePixelRatio: 1.0),
+        data: MediaQueryData(),
         child: Directionality(
           textDirection: TextDirection.ltr,
           child: SelectableText.rich(
@@ -323,7 +322,7 @@ void main() {
   testWidgets('Rich selectable text only support TextSpan', (WidgetTester tester) async {
     await tester.pumpWidget(
       const MediaQuery(
-        data: MediaQueryData(devicePixelRatio: 1.0),
+        data: MediaQueryData(),
         child: Directionality(
           textDirection: TextDirection.ltr,
           child: SelectableText.rich(
@@ -711,7 +710,6 @@ void main() {
         child: const SelectableText(
           'a selectable text',
           toolbarOptions: ToolbarOptions(
-            copy: false,
             selectAll: true,
           ),
         ),
@@ -1388,42 +1386,7 @@ void main() {
     expect(topLeft.dx, equals(399.0));
   });
 
-  testWidgets('Selectable text drops selection when losing focus', (WidgetTester tester) async {
-    final Key key1 = UniqueKey();
-    final Key key2 = UniqueKey();
-
-    await tester.pumpWidget(
-      overlay(
-        child: Column(
-          children: <Widget>[
-            SelectableText(
-              'text 1',
-              key: key1,
-            ),
-            SelectableText(
-                'text 2',
-                key: key2,
-            ),
-          ],
-        ),
-      ),
-    );
-
-    await tester.tap(find.byKey(key1));
-    await tester.pump();
-    final EditableText editableTextWidget = tester.widget(find.byType(EditableText).first);
-    final TextEditingController controller = editableTextWidget.controller;
-    controller.selection = const TextSelection(baseOffset: 0, extentOffset: 3);
-    await tester.pump();
-    expect(controller.selection, isNot(equals(TextRange.empty)));
-
-    await tester.tap(find.byKey(key2));
-    await tester.pump();
-    expect(controller.selection, equals(TextRange.empty));
-  });
-
-    testWidgets('Selectable text is skipped during focus traversal',
-      (WidgetTester tester) async {
+  testWidgets('Selectable text is skipped during focus traversal', (WidgetTester tester) async {
     final FocusNode firstFieldFocus = FocusNode();
     final FocusNode lastFieldFocus = FocusNode();
 
@@ -1477,6 +1440,72 @@ void main() {
     expect(
       semantics,
       includesNodeWith(
+        flags: <SemanticsFlag>[
+          SemanticsFlag.isTextField,
+          SemanticsFlag.isReadOnly,
+          SemanticsFlag.isMultiline,
+        ],
+      ),
+    );
+
+    semantics.dispose();
+  });
+
+  testWidgets('Selectable text rich text with spell out in semantics', (WidgetTester tester) async {
+    final SemanticsTester semantics = SemanticsTester(tester);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Material(
+          child: Center(
+            child: SelectableText.rich(TextSpan(text: 'some text', spellOut: true)),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      semantics,
+      includesNodeWith(
+        attributedValue: AttributedString(
+          'some text',
+          attributes: <StringAttribute>[
+            SpellOutStringAttribute(range: const TextRange(start: 0, end:9)),
+          ],
+        ),
+        flags: <SemanticsFlag>[
+          SemanticsFlag.isTextField,
+          SemanticsFlag.isReadOnly,
+          SemanticsFlag.isMultiline,
+        ],
+      ),
+    );
+
+    semantics.dispose();
+  });
+
+  testWidgets('Selectable text rich text with locale in semantics', (WidgetTester tester) async {
+    final SemanticsTester semantics = SemanticsTester(tester);
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Material(
+          child: Center(
+            child: SelectableText.rich(TextSpan(text: 'some text', locale: Locale('es', 'MX'))),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      semantics,
+      includesNodeWith(
+        attributedValue: AttributedString(
+          'some text',
+          attributes: <StringAttribute>[
+            LocaleStringAttribute(range: const TextRange(start: 0, end:9), locale: const Locale('es', 'MX')),
+          ],
+        ),
         flags: <SemanticsFlag>[
           SemanticsFlag.isTextField,
           SemanticsFlag.isReadOnly,
@@ -1549,7 +1578,6 @@ void main() {
           home: Material(
             child: RawKeyboardListener(
               focusNode: focusNode,
-              onKey: null,
               child: SelectableText(
                 text,
                 maxLines: 3,
@@ -1570,7 +1598,7 @@ void main() {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
       await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowLeft);
       expect(controller.selection.extentOffset - controller.selection.baseOffset, -1);
-    });
+    }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('Shift test 2', (WidgetTester tester) async {
       await setupWidget(tester, 'abcdefghi');
@@ -1582,7 +1610,7 @@ void main() {
       await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
       await tester.pumpAndSettle();
       expect(controller.selection.extentOffset - controller.selection.baseOffset, 1);
-    });
+    }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('Control Shift test', (WidgetTester tester) async {
       await setupWidget(tester, 'their big house');
@@ -1594,7 +1622,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.selection.extentOffset - controller.selection.baseOffset, -5);
-    });
+    }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('Down and up test', (WidgetTester tester) async {
       await setupWidget(tester, 'a big house');
@@ -1612,7 +1640,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.selection.extentOffset - controller.selection.baseOffset, 0);
-    });
+    }, variant: KeySimulatorTransitModeVariant.all());
 
     testWidgets('Down and up test 2', (WidgetTester tester) async {
       await setupWidget(tester, 'a big house\njumped over a mouse\nOne more line yay');
@@ -1663,7 +1691,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(controller.selection.extentOffset - controller.selection.baseOffset, -5);
-    });
+    }, variant: KeySimulatorTransitModeVariant.all());
   });
 
   testWidgets('Copy test', (WidgetTester tester) async {
@@ -1683,7 +1711,6 @@ void main() {
         home: Material(
           child: RawKeyboardListener(
             focusNode: focusNode,
-            onKey: null,
             child: const SelectableText(
               testValue,
               maxLines: 3,
@@ -1722,7 +1749,7 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await tester.pumpAndSettle();
-  });
+  }, variant: KeySimulatorTransitModeVariant.all());
 
   testWidgets('Select all test', (WidgetTester tester) async {
     final FocusNode focusNode = FocusNode();
@@ -1732,7 +1759,6 @@ void main() {
         home: Material(
           child: RawKeyboardListener(
             focusNode: focusNode,
-            onKey: null,
             child: const SelectableText(
               testValue,
               maxLines: 3,
@@ -1757,7 +1783,7 @@ void main() {
 
     expect(controller.selection.baseOffset, 0);
     expect(controller.selection.extentOffset, 31);
-  });
+  }, variant: KeySimulatorTransitModeVariant.all());
 
   testWidgets('keyboard selection should call onSelectionChanged', (WidgetTester tester) async {
     final FocusNode focusNode = FocusNode();
@@ -1768,7 +1794,6 @@ void main() {
         home: Material(
           child: RawKeyboardListener(
             focusNode: focusNode,
-            onKey: null,
             child: SelectableText(
               testValue,
               maxLines: 3,
@@ -1804,7 +1829,7 @@ void main() {
       expect(newSelection!.extentOffset, i + 1);
       newSelection = null;
     }
-  });
+  }, variant: KeySimulatorTransitModeVariant.all());
 
   testWidgets('Changing positions of selectable text', (WidgetTester tester) async {
     final FocusNode focusNode = FocusNode();
@@ -1893,9 +1918,8 @@ void main() {
     editableTextWidget = tester.widget(find.byType(EditableText).last);
     c1 = editableTextWidget.controller;
 
-    expect(c1.selection.extentOffset - c1.selection.baseOffset, -6);
-  });
-
+    expect(c1.selection.extentOffset - c1.selection.baseOffset, -10);
+  }, variant: KeySimulatorTransitModeVariant.all());
 
   testWidgets('Changing focus test', (WidgetTester tester) async {
     final FocusNode focusNode = FocusNode();
@@ -1962,16 +1986,15 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
     await tester.pumpAndSettle();
 
-    expect(c1.selection.extentOffset - c1.selection.baseOffset, 0);
+    expect(c1.selection.extentOffset - c1.selection.baseOffset, -5);
     expect(c2.selection.extentOffset - c2.selection.baseOffset, -5);
-  });
+  }, variant: KeySimulatorTransitModeVariant.all());
 
   testWidgets('Caret works when maxLines is null', (WidgetTester tester) async {
     await tester.pumpWidget(
         overlay(
           child: const SelectableText(
             'x',
-            maxLines: null,
           ),
         ),
     );
@@ -2204,6 +2227,32 @@ void main() {
     ), ignoreTransform: true, ignoreRect: true));
 
     semantics.dispose();
+  });
+
+  testWidgets('SelectableText semantics, with semanticsLabel', (WidgetTester tester) async {
+    final SemanticsTester semantics = SemanticsTester(tester);
+    final Key key = UniqueKey();
+
+    await tester.pumpWidget(
+      overlay(
+        child: SelectableText(
+          'Guten Tag',
+          semanticsLabel: 'German greeting for good day',
+          key: key,
+        ),
+      ),
+    );
+
+    expect(semantics, hasSemantics(TestSemantics.root(
+      children: <TestSemantics>[
+        TestSemantics(
+          id: 1,
+          actions: <SemanticsAction>[SemanticsAction.longPress],
+          label: 'German greeting for good day',
+          textDirection: TextDirection.ltr,
+        )
+      ],
+    ), ignoreTransform: true, ignoreRect: true));
   });
 
   testWidgets('SelectableText semantics, enableInteractiveSelection = false', (WidgetTester tester) async {
@@ -3223,7 +3272,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 7,
-          affinity: TextAffinity.downstream,
         ),
       );
       // Cursor move doesn't trigger a toolbar initially.
@@ -3238,7 +3286,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 12,
-          affinity: TextAffinity.downstream,
         ),
       );
       // Still no toolbar.
@@ -3253,7 +3300,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 23,
-          affinity: TextAffinity.downstream,
         ),
       );
       // Still no toolbar.
@@ -3268,7 +3314,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 23,
-          affinity: TextAffinity.downstream,
         ),
       );
       // The toolbar now shows up.
@@ -3305,7 +3350,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 7,
-          affinity: TextAffinity.downstream,
         ),
       );
       // Cursor move doesn't trigger a toolbar initially.
@@ -3320,7 +3364,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 8,
-          affinity: TextAffinity.downstream,
         ),
       );
       // Still no toolbar.
@@ -3335,7 +3378,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 12,
-          affinity: TextAffinity.downstream,
         ),
       );
       // Still no toolbar.
@@ -3350,7 +3392,6 @@ void main() {
         const TextSelection(
           baseOffset: 0,
           extentOffset: 12,
-          affinity: TextAffinity.downstream,
         ),
       );
       // The toolbar now shows up.
@@ -3407,7 +3448,6 @@ void main() {
       const TextSelection(
         baseOffset: 13,
         extentOffset: 66,
-        affinity: TextAffinity.downstream,
       ),
     );
     // Keep moving out.
@@ -3418,7 +3458,6 @@ void main() {
       const TextSelection(
         baseOffset: 13,
         extentOffset: 66,
-        affinity: TextAffinity.downstream,
       ),
     );
     await gesture.moveBy(const Offset(1, 0));
@@ -3428,7 +3467,6 @@ void main() {
       const TextSelection(
         baseOffset: 13,
         extentOffset: 66,
-        affinity: TextAffinity.downstream,
       ),
     );
     expect(find.byType(CupertinoButton), findsNothing);
@@ -3442,7 +3480,6 @@ void main() {
       const TextSelection(
         baseOffset: 13,
         extentOffset: 66,
-        affinity: TextAffinity.downstream,
       ),
     );
     // The toolbar now shows up.
@@ -3637,7 +3674,7 @@ void main() {
       // First tap moved the cursor.
       expect(
         controller.selection,
-        const TextSelection.collapsed(offset: 0, affinity: TextAffinity.downstream),
+        const TextSelection.collapsed(offset: 0),
       );
       await tester.tapAt(selectableTextStart + const Offset(10.0, 5.0));
       await tester.pump(const Duration(milliseconds: 50));
@@ -3688,7 +3725,7 @@ void main() {
         pressureMin: 0.0,
       ),
     );
-    await gesture.updateWithCustomEvent(PointerMoveEvent(pointer: pointerValue, position: offset + const Offset(150.0, 5.0), pressure: 0.5, pressureMin: 0, pressureMax: 1));
+    await gesture.updateWithCustomEvent(PointerMoveEvent(pointer: pointerValue, position: offset + const Offset(150.0, 5.0), pressure: 0.5, pressureMin: 0));
 
     final EditableText editableTextWidget = tester.widget(find.byType(EditableText).first);
     final TextEditingController controller = editableTextWidget.controller;
@@ -3726,7 +3763,7 @@ void main() {
       ),
     );
 
-    await gesture.updateWithCustomEvent(PointerMoveEvent(pointer: pointerValue, position: selectableTextStart + const Offset(150.0, 5.0), pressure: 0.5, pressureMin: 0, pressureMax: 1));
+    await gesture.updateWithCustomEvent(PointerMoveEvent(pointer: pointerValue, position: selectableTextStart + const Offset(150.0, 5.0), pressure: 0.5, pressureMin: 0));
 
     final EditableText editableTextWidget = tester.widget(find.byType(EditableText).first);
     final TextEditingController controller = editableTextWidget.controller;
@@ -3768,7 +3805,7 @@ void main() {
       ),
     );
 
-    await gesture.updateWithCustomEvent(PointerMoveEvent(pointer: pointerValue, position: selectableTextStart + const Offset(150.0, 5.0), pressure: 0.5, pressureMin: 0, pressureMax: 1));
+    await gesture.updateWithCustomEvent(PointerMoveEvent(pointer: pointerValue, position: selectableTextStart + const Offset(150.0, 5.0), pressure: 0.5, pressureMin: 0));
     await gesture.up();
 
     final EditableText editableTextWidget = tester.widget(find.byType(EditableText).first);
@@ -3821,6 +3858,7 @@ void main() {
       cursorRadius: Radius.zero,
       cursorColor: Color(0xff00ff00),
       scrollPhysics: ClampingScrollPhysics(),
+      semanticsLabel: 'something else',
       enableInteractiveSelection: false,
     ).debugFillProperties(builder);
 
@@ -3830,6 +3868,7 @@ void main() {
 
     expect(description, <String>[
       'data: something',
+      'semanticsLabel: something else',
       'style: TextStyle(inherit: true, color: Color(0xff00ff00))',
       'autofocus: true',
       'showCursor: true',
@@ -4886,7 +4925,6 @@ void main() {
                   ),
                   key: Key('field0'),
                   selectionHeightStyle: ui.BoxHeightStyle.includeLineSpacingBottom,
-                  selectionWidthStyle: ui.BoxWidthStyle.tight,
                 ),
               ],
             ),
