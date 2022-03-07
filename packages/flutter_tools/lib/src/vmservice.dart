@@ -402,7 +402,7 @@ class FlutterView {
     required this.uiIsolate,
   });
 
-  factory FlutterView.parse(Map<String, Object> json) {
+  factory FlutterView.parse(Map<String, Object?> json) {
     final Map<String, Object?>? rawIsolate = json['isolate'] as Map<String, Object?>?;
     vm_service.IsolateRef? isolate;
     if (rawIsolate != null) {
@@ -709,7 +709,7 @@ class FlutterVmService {
         isolateId: isolateId,
       );
       // A response of `null` indicates that `invokeFlutterExtensionRpcRaw` caught an RPCError
-      // with a missing method code. This can happen when attempting to quit a flutter app
+      // with a missing method code. This can happen when attempting to quit a Flutter app
       // that never registered the methods in the bindings.
       if (result == null) {
         return false;
@@ -822,11 +822,11 @@ class FlutterVmService {
         // with cleaning up.
         return <FlutterView>[];
       }
-      final List<Object>? rawViews = response.json?['views'] as List<Object>?;
+      final List<Object?>? rawViews = response.json?['views'] as List<Object?>?;
       final List<FlutterView> views = <FlutterView>[
         if (rawViews != null)
-          for (final Object rawView in rawViews)
-            FlutterView.parse(rawView as Map<String, Object>)
+          for (final Map<String, Object?> rawView in rawViews.whereType<Map<String, Object?>>())
+            FlutterView.parse(rawView)
       ];
       if (views.isNotEmpty || returnEarly) {
         return views;
@@ -866,7 +866,7 @@ class FlutterVmService {
       final List<vm_service.IsolateRef> refs = await _getIsolateRefs();
       for (final vm_service.IsolateRef ref in refs) {
         final vm_service.Isolate? isolate = await getIsolateOrNull(ref.id!);
-        if (isolate != null && isolate.extensionRPCs?.contains(extensionName) == true) {
+        if (isolate != null && (isolate.extensionRPCs?.contains(extensionName) ?? false)) {
           return ref;
         }
       }

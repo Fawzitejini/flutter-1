@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @dart = 2.8
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -262,7 +260,7 @@ flutter:
       ]),
       androidConsoleSocketFactory: (String host, int port) async {
         socketWasCreated = true;
-        throw 'Socket was created for non-emulator';
+        throw Exception('Socket was created for non-emulator');
       }
     );
 
@@ -281,7 +279,7 @@ flutter:
       ]),
       androidConsoleSocketFactory: (String host, int port) async {
         socketWasCreated = true;
-        throw 'Socket was created for emulator without port in ID';
+        throw Exception('Socket was created for emulator without port in ID');
       },
     );
 
@@ -459,15 +457,16 @@ Uptime: 441088659 Realtime: 521464097
 }
 
 AndroidDevice setUpAndroidDevice({
-  String id,
-  AndroidSdk androidSdk,
-  FileSystem fileSystem,
-  ProcessManager processManager,
-  Platform platform,
+  String? id,
+  AndroidSdk? androidSdk,
+  FileSystem? fileSystem,
+  ProcessManager? processManager,
+  Platform? platform,
   AndroidConsoleSocketFactory androidConsoleSocketFactory = kAndroidConsoleSocketFactory,
 }) {
   androidSdk ??= FakeAndroidSdk();
   return AndroidDevice(id ?? '1234',
+    modelID: 'TestModel',
     logger: BufferLogger.test(),
     platform: platform ?? FakePlatform(),
     androidSdk: androidSdk,
@@ -665,7 +664,7 @@ class FakeWorkingAndroidConsoleSocket extends Fake implements Socket {
       // as part of the previous text to ensure both are handled.
       _controller.add('OK\n');
     } else {
-      throw 'Unexpected command $text';
+      throw Exception('Unexpected command $text');
     }
   }
 

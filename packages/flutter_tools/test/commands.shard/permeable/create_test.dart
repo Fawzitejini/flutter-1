@@ -21,7 +21,7 @@ import 'package:flutter_tools/src/commands/create.dart';
 import 'package:flutter_tools/src/commands/create_base.dart';
 import 'package:flutter_tools/src/dart/pub.dart';
 import 'package:flutter_tools/src/features.dart';
-import 'package:flutter_tools/src/globals_null_migrated.dart' as globals;
+import 'package:flutter_tools/src/globals.dart' as globals;
 import 'package:flutter_tools/src/project.dart';
 import 'package:flutter_tools/src/version.dart';
 import 'package:process/process.dart';
@@ -147,6 +147,8 @@ void main() {
       projectDir,
       <String>['-t', 'skeleton', '-i', 'objc', '-a', 'java', '--implementation-tests'],
       <String>[
+        '.dart_tool/flutter_gen/pubspec.yaml',
+        '.dart_tool/flutter_gen/gen_l10n/app_localizations.dart',
         'analysis_options.yaml',
         'android/app/src/main/java/com/example/flutter_project/MainActivity.java',
         'android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java',
@@ -1020,6 +1022,7 @@ void main() {
     expect(resourceFile, exists);
     final String contents = resourceFile.readAsStringSync();
     expect(contents, contains('"CompanyName", "com.foo.bar"'));
+    expect(contents, contains('"FileDescription", "flutter_project"'));
     expect(contents, contains('"ProductName", "flutter_project"'));
   }, overrides: <Type, Generator>{
     FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: true),
@@ -1060,7 +1063,7 @@ void main() {
         isNot(exists));
     validatePubspecForPlugin(projectDir: projectDir.absolute.path, expectedPlatforms: const <String>[
       'windows'
-    ], pluginClass: 'FlutterProjectPlugin',
+    ], pluginClass: 'FlutterProjectPluginCApi',
     unexpectedPlatforms: <String>['some_platform']);
     expect(logger.errorText, isNot(contains(_kNoPlatformsMessage)));
   }, overrides: <Type, Generator>{
@@ -1361,6 +1364,114 @@ void main() {
     FlutterVersion: () => fakeFlutterVersion,
     Platform: _kNoColorTerminalMacOSPlatform,
     ProcessManager: () => fakeProcessManager,
+  });
+
+  testUsingContext('display name is Title Case for objc iOS project.', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--template=app', '--no-pub', '--org', 'com.foo.bar','--ios-language=objc', '--project-name=my_project', projectDir.path]);
+
+    final String plistPath = globals.fs.path.join('ios', 'Runner', 'Info.plist');
+    final File plistFile = globals.fs.file(globals.fs.path.join(projectDir.path, plistPath));
+    expect(plistFile, exists);
+    final String displayName = _getStringValueFromPlist(plistFile: plistFile, key: 'CFBundleDisplayName');
+    expect(displayName, 'My Project');
+  });
+
+  testUsingContext('display name is Title Case for swift iOS project.', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--template=app', '--no-pub', '--org', 'com.foo.bar','--ios-language=swift', '--project-name=my_project', projectDir.path]);
+
+    final String plistPath = globals.fs.path.join('ios', 'Runner', 'Info.plist');
+    final File plistFile = globals.fs.file(globals.fs.path.join(projectDir.path, plistPath));
+    expect(plistFile, exists);
+    final String displayName = _getStringValueFromPlist(plistFile: plistFile, key: 'CFBundleDisplayName');
+    expect(displayName, 'My Project');
+  });
+
+  testUsingContext('display name is Title Case for objc iOS module.', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--template=module', '--org', 'com.foo.bar','--ios-language=objc', '--project-name=my_project', projectDir.path]);
+
+    final String plistPath = globals.fs.path.join('.ios', 'Runner', 'Info.plist');
+    final File plistFile = globals.fs.file(globals.fs.path.join(projectDir.path, plistPath));
+    expect(plistFile, exists);
+    final String displayName = _getStringValueFromPlist(plistFile: plistFile, key: 'CFBundleDisplayName');
+    expect(displayName, 'My Project');
+  }, overrides: <Type, Generator>{
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
+  });
+
+  testUsingContext('display name is Title Case for swift iOS module.', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--template=module', '--org', 'com.foo.bar','--ios-language=swift', '--project-name=my_project', projectDir.path]);
+
+    final String plistPath = globals.fs.path.join('.ios', 'Runner', 'Info.plist');
+    final File plistFile = globals.fs.file(globals.fs.path.join(projectDir.path, plistPath));
+    expect(plistFile, exists);
+    final String displayName = _getStringValueFromPlist(plistFile: plistFile, key: 'CFBundleDisplayName');
+    expect(displayName, 'My Project');
+  }, overrides: <Type, Generator>{
+    Pub: () => Pub(
+      fileSystem: globals.fs,
+      logger: globals.logger,
+      processManager: globals.processManager,
+      usage: globals.flutterUsage,
+      botDetector: globals.botDetector,
+      platform: globals.platform,
+    ),
+  });
+
+  testUsingContext('display name is Title Case for swift iOS plugin.', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--template=plugin', '--no-pub', '--org', 'com.foo.bar', '--platforms=ios', '--ios-language=swift', '--project-name=my_project', projectDir.path]);
+
+    final String plistPath = globals.fs.path.join('example', 'ios', 'Runner', 'Info.plist');
+    final File plistFile = globals.fs.file(globals.fs.path.join(projectDir.path, plistPath));
+    expect(plistFile, exists);
+    final String displayName = _getStringValueFromPlist(plistFile: plistFile, key: 'CFBundleDisplayName');
+    expect(displayName, 'My Project');
+  });
+
+  testUsingContext('display name is Title Case for objc iOS plugin.', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--template=plugin', '--no-pub', '--org', 'com.foo.bar', '--platforms=ios', '--ios-language=objc', '--project-name=my_project', projectDir.path]);
+
+    final String plistPath = globals.fs.path.join('example', 'ios', 'Runner', 'Info.plist');
+    final File plistFile = globals.fs.file(globals.fs.path.join(projectDir.path, plistPath));
+    expect(plistFile, exists);
+    final String displayName = _getStringValueFromPlist(plistFile: plistFile, key: 'CFBundleDisplayName');
+    expect(displayName, 'My Project');
   });
 
   testUsingContext('has correct content and formatting with macOS app template', () async {
@@ -2368,7 +2479,7 @@ void main() {
     expect(env['flutter'].allows(Version(2, 4, 9)), false);
   });
 
-  testUsingContext('default app uses Android SDK 30', () async {
+  testUsingContext('default app uses flutter default versions', () async {
     Cache.flutterRoot = '../..';
 
     final CreateCommand command = CreateCommand();
@@ -2380,8 +2491,9 @@ void main() {
 
     final String buildContent = await globals.fs.file('${projectDir.path}/android/app/build.gradle').readAsString();
 
-    expect(buildContent.contains('compileSdkVersion 30'), true);
-    expect(buildContent.contains('targetSdkVersion 30'), true);
+    expect(buildContent.contains('compileSdkVersion flutter.compileSdkVersion'), true);
+    expect(buildContent.contains('ndkVersion flutter.ndkVersion'), true);
+    expect(buildContent.contains('targetSdkVersion flutter.targetSdkVersion'), true);
   });
 
   testUsingContext('Linux plugins handle partially camel-case project names correctly', () async {
@@ -2427,21 +2539,33 @@ void main() {
     final Directory platformDir = projectDir.childDirectory('windows');
 
     const String classFilenameBase = 'foo_bar_baz_plugin';
-    const String headerName = '$classFilenameBase.h';
-    final File headerFile = platformDir
+    const String cApiHeaderName = '${classFilenameBase}_c_api.h';
+    const String pluginClassHeaderName = '$classFilenameBase.h';
+    final File cApiHeaderFile = platformDir
         .childDirectory('include')
         .childDirectory(projectName)
-        .childFile(headerName);
-    final File implFile = platformDir.childFile('$classFilenameBase.cpp');
+        .childFile(cApiHeaderName);
+    final File cApiImplFile = platformDir.childFile('${classFilenameBase}_c_api.cpp');
+    final File pluginClassHeaderFile = platformDir.childFile(pluginClassHeaderName);
+    final File pluginClassImplFile = platformDir.childFile('$classFilenameBase.cpp');
     // Ensure that the files have the right names.
-    expect(headerFile, exists);
-    expect(implFile, exists);
-    // Ensure that the include is correct.
-    expect(implFile.readAsStringSync(), contains(headerName));
+    expect(cApiHeaderFile, exists);
+    expect(cApiImplFile, exists);
+    expect(pluginClassHeaderFile, exists);
+    expect(pluginClassImplFile, exists);
+    // Ensure that the includes are correct.
+    expect(cApiImplFile.readAsLinesSync(), containsAllInOrder(<Matcher>[
+      contains('#include "include/$projectName/$cApiHeaderName"'),
+      contains('#include "$pluginClassHeaderName"'),
+    ]));
+    expect(pluginClassImplFile.readAsLinesSync(), contains('#include "$pluginClassHeaderName"'));
     // Ensure that the plugin target name matches the post-processed version.
     // Ensure that the CMake file has the right target and source values.
     final String cmakeContents = platformDir.childFile('CMakeLists.txt').readAsStringSync();
     expect(cmakeContents, contains('"$classFilenameBase.cpp"'));
+    expect(cmakeContents, contains('"$classFilenameBase.h"'));
+    expect(cmakeContents, contains('"${classFilenameBase}_c_api.cpp"'));
+    expect(cmakeContents, contains('"include/$projectName/${classFilenameBase}_c_api.h"'));
     expect(cmakeContents, contains('set(PLUGIN_NAME "foo_BarBaz_plugin")'));
   }, overrides: <Type, Generator>{
     FeatureFlags: () => TestFeatureFlags(isWindowsEnabled: true),
@@ -2496,17 +2620,26 @@ void main() {
 
     // If the project already ends in _plugin, it shouldn't be added again.
     const String classFilenameBase = projectName;
-    const String headerName = '$classFilenameBase.h';
-    final File headerFile = platformDir
+    const String cApiHeaderName = '${classFilenameBase}_c_api.h';
+    const String pluginClassHeaderName = '$classFilenameBase.h';
+    final File cApiHeaderFile = platformDir
         .childDirectory('include')
         .childDirectory(projectName)
-        .childFile(headerName);
-    final File implFile = platformDir.childFile('$classFilenameBase.cpp');
+        .childFile(cApiHeaderName);
+    final File cApiImplFile = platformDir.childFile('${classFilenameBase}_c_api.cpp');
+    final File pluginClassHeaderFile = platformDir.childFile(pluginClassHeaderName);
+    final File pluginClassImplFile = platformDir.childFile('$classFilenameBase.cpp');
     // Ensure that the files have the right names.
-    expect(headerFile, exists);
-    expect(implFile, exists);
-    // Ensure that the include is correct.
-    expect(implFile.readAsStringSync(), contains(headerName));
+    expect(cApiHeaderFile, exists);
+    expect(cApiImplFile, exists);
+    expect(pluginClassHeaderFile, exists);
+    expect(pluginClassImplFile, exists);
+    // Ensure that the includes are correct.
+    expect(cApiImplFile.readAsLinesSync(), containsAllInOrder(<Matcher>[
+      contains('#include "include/$projectName/$cApiHeaderName"'),
+      contains('#include "$pluginClassHeaderName"'),
+    ]));
+    expect(pluginClassImplFile.readAsLinesSync(), contains('#include "$pluginClassHeaderName"'));
     // Ensure that the CMake file has the right target and source values.
     final String cmakeContents = platformDir.childFile('CMakeLists.txt').readAsStringSync();
     expect(cmakeContents, contains('"$classFilenameBase.cpp"'));
@@ -2649,6 +2782,104 @@ void main() {
       botDetector: globals.botDetector,
       platform: globals.platform,
     ),
+  });
+
+  testUsingContext('create an FFI plugin with ios, then add macos', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    await runner.run(<String>['create', '--no-pub', '--template=plugin_ffi', '--platform=ios', projectDir.path]);
+    expect(projectDir.childDirectory('src'), exists);
+    expect(projectDir.childDirectory('ios'), exists);
+    expect(projectDir.childDirectory('example').childDirectory('ios'), exists);
+    validatePubspecForPlugin(
+      projectDir: projectDir.absolute.path,
+      expectedPlatforms: const <String>[
+        'ios',
+      ],
+      ffiPlugin: true,
+      unexpectedPlatforms: <String>['some_platform'],
+    );
+
+    await runner.run(<String>['create', '--no-pub', '--template=plugin_ffi', '--platform=macos', projectDir.path]);
+    expect(projectDir.childDirectory('macos'), exists);
+    expect(
+        projectDir.childDirectory('example').childDirectory('macos'), exists);
+    expect(projectDir.childDirectory('ios'), exists);
+    expect(projectDir.childDirectory('example').childDirectory('ios'), exists);
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(isMacOSEnabled: true),
+  });
+
+  testUsingContext('FFI plugins error android language', () async {
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    final List<String> args = <String>[
+      'create',
+      '--no-pub',
+      '--template=plugin_ffi',
+      '-a',
+      'kotlin',
+      '--platforms=android',
+      projectDir.path,
+    ];
+
+    await expectLater(
+      runner.run(args),
+      throwsToolExit(message: 'The "android-language" option is not supported with the plugin_ffi template: the language will always be C or C++.'),
+    );
+  });
+
+  testUsingContext('FFI plugins error ios language', () async {
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    final List<String> args = <String>[
+      'create',
+      '--no-pub',
+      '--template=plugin_ffi',
+      '--ios-language',
+      'swift',
+      '--platforms=ios',
+      projectDir.path,
+    ];
+
+    await expectLater(
+      runner.run(args),
+      throwsToolExit(message: 'The "ios-language" option is not supported with the plugin_ffi template: the language will always be C or C++.'),
+    );
+  });
+
+  testUsingContext('FFI plugins error web platform', () async {
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+    final List<String> args = <String>[
+      'create',
+      '--no-pub',
+      '--template=plugin_ffi',
+      '--platforms=web',
+      projectDir.path,
+    ];
+
+    await expectLater(
+      runner.run(args),
+      throwsToolExit(message: 'The web platform is not supported in plugin_ffi template.'),
+    );
+  });
+
+  testUsingContext('should show warning when disabled platforms are selected while creating an FFI plugin', () async {
+    Cache.flutterRoot = '../..';
+
+    final CreateCommand command = CreateCommand();
+    final CommandRunner<void> runner = createTestCommandRunner(command);
+
+    await runner.run(<String>['create', '--no-pub', '--template=plugin_ffi', '--platforms=android,ios,windows,macos,linux', projectDir.path]);
+    await runner.run(<String>['create', '--no-pub', '--template=plugin_ffi', projectDir.path]);
+    expect(logger.statusText, contains(_kDisabledPlatformRequestedMessage));
+
+  }, overrides: <Type, Generator>{
+    FeatureFlags: () => TestFeatureFlags(),
+    Logger: () => logger,
   });
 }
 
@@ -2857,4 +3088,11 @@ class LoggingProcessManager extends LocalProcessManager {
   void clear() {
     commands.clear();
   }
+}
+
+String _getStringValueFromPlist({File plistFile, String key}) {
+  final List<String> plist = plistFile.readAsLinesSync().map((String line) => line.trim()).toList();
+  final int keyIndex = plist.indexOf('<key>$key</key>');
+  assert(keyIndex > 0);
+  return plist[keyIndex+1].replaceAll('<string>', '').replaceAll('</string>', '');
 }

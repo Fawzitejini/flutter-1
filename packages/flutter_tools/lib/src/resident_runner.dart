@@ -35,7 +35,7 @@ import 'convert.dart';
 import 'devfs.dart';
 import 'device.dart';
 import 'features.dart';
-import 'globals_null_migrated.dart' as globals;
+import 'globals.dart' as globals;
 import 'project.dart';
 import 'resident_devtools_handler.dart';
 import 'run_cold.dart';
@@ -367,7 +367,7 @@ class FlutterDevice {
       return;
     }
     _loggingSubscription = logStream.listen((String line) {
-      if (!line.contains('Observatory listening on http')) {
+      if (!line.contains(globals.kVMServiceMessageRegExp)) {
         globals.printStatus(line, wrap: false);
       }
     });
@@ -416,7 +416,9 @@ class FlutterDevice {
     }
     devFSWriter = device.createDevFSWriter(package, userIdentifier);
 
-    final Map<String, dynamic> platformArgs = <String, dynamic>{};
+    final Map<String, dynamic> platformArgs = <String, dynamic>{
+      'multidex': hotRunner.multidexEnabled,
+    };
 
     await startEchoingDeviceLog();
 
@@ -492,6 +494,7 @@ class FlutterDevice {
     if (coldRunner.traceStartup != null) {
       platformArgs['trace-startup'] = coldRunner.traceStartup;
     }
+    platformArgs['multidex'] = coldRunner.multidexEnabled;
 
     await startEchoingDeviceLog();
 
@@ -630,7 +633,7 @@ abstract class ResidentHandlers {
   /// the value of [fullRestart].
   Future<OperationResult> restart({ bool fullRestart = false, bool pause = false, String reason }) {
     final String mode = isRunningProfile ? 'profile' :isRunningRelease ? 'release' : 'this';
-    throw '${fullRestart ? 'Restart' : 'Reload'} is not supported in $mode mode';
+    throw Exception('${fullRestart ? 'Restart' : 'Reload'} is not supported in $mode mode');
   }
 
   /// Dump the application's current widget tree to the terminal.
@@ -1157,6 +1160,10 @@ abstract class ResidentRunner extends ResidentHandlers {
       platform: globals.platform,
       projectDir: globals.fs.currentDirectory,
       generateDartPluginRegistry: generateDartPluginRegistry,
+      defines: <String, String>{
+        // Needed for Dart plugin registry generation.
+        kTargetFile: mainPath,
+      },
     );
 
     final CompositeTarget compositeTarget = CompositeTarget(<Target>[
@@ -1171,7 +1178,7 @@ abstract class ResidentRunner extends ResidentHandlers {
     );
     if (!_lastBuild.success) {
       for (final ExceptionMeasurement exceptionMeasurement in _lastBuild.exceptions.values) {
-        globals.logger.printError(
+        globals.printError(
           exceptionMeasurement.exception.toString(),
           stackTrace: globals.logger.isVerbose
             ? exceptionMeasurement.stackTrace
@@ -1179,7 +1186,7 @@ abstract class ResidentRunner extends ResidentHandlers {
         );
       }
     }
-    globals.logger.printTrace('complete');
+    globals.printTrace('complete');
   }
 
   @protected
@@ -1234,7 +1241,7 @@ abstract class ResidentRunner extends ResidentHandlers {
     if (_dillOutputPath != null) {
       return;
     }
-    globals.logger.printTrace('Caching compiled dill');
+    globals.printTrace('Caching compiled dill');
     final File outputDill = globals.fs.file(dillOutputPath);
     if (outputDill.existsSync()) {
       final String copyPath = getDefaultCachedKernelPath(
@@ -1273,7 +1280,7 @@ abstract class ResidentRunner extends ResidentHandlers {
     @required bool allowExistingDdsInstance,
   }) async {
     if (!debuggingOptions.debuggingEnabled) {
-      throw 'The service protocol is not enabled.';
+      throw Exception('The service protocol is not enabled.');
     }
     _finished = Completer<int>();
     // Listen for service protocol connection to close.
@@ -1554,7 +1561,7 @@ class TerminalHandler {
         _logger.printTrace('Deleting pid file (${_actualPidFile.path}).');
         _actualPidFile.deleteSync();
       } on FileSystemException catch (error) {
-        _logger.printError('Failed to delete pid file (${_actualPidFile.path}): ${error.message}');
+        _logger.printWarning('Failed to delete pid file (${_actualPidFile.path}): ${error.message}');
       }
       _actualPidFile = null;
     }

@@ -10,6 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 
 const DismissDirection defaultDismissDirection = DismissDirection.horizontal;
 const double crossAxisEndOffset = 0.5;
+bool reportedDismissUpdateReached = false;
+bool reportedDismissUpdatePreviousReached = false;
+double reportedDismissUpdateProgress = 0.0;
+late DismissDirection reportedDismissUpdateReachedDirection;
 
 DismissDirection reportedDismissDirection = DismissDirection.horizontal;
 List<int> dismissedItems = <int>[];
@@ -45,6 +49,12 @@ Widget buildTest({
             },
             onResize: () {
               expect(dismissedItems.contains(item), isFalse);
+            },
+            onUpdate: (DismissUpdateDetails details) {
+              reportedDismissUpdateReachedDirection = details.direction;
+              reportedDismissUpdateReached = details.reached;
+              reportedDismissUpdatePreviousReached = details.previousReached;
+              reportedDismissUpdateProgress = details.progress;
             },
             background: background,
             dismissThresholds: startToEndThreshold == null
@@ -112,6 +122,25 @@ Future<void> dismissElement(WidgetTester tester, Finder finder, { required AxisD
   await gesture.up();
 }
 
+Future<void> dragElement(WidgetTester tester, Finder finder, { required AxisDirection gestureDirection, required double amount }) async {
+  Offset delta;
+  switch (gestureDirection) {
+    case AxisDirection.left:
+      delta = Offset(-amount, 0.0);
+      break;
+    case AxisDirection.right:
+      delta = Offset(amount, 0.0);
+      break;
+    case AxisDirection.up:
+      delta = Offset(0.0, -amount);
+      break;
+    case AxisDirection.down:
+      delta = Offset(0.0, amount);
+      break;
+  }
+  await tester.drag(finder, delta);
+}
+
 Future<void> flingElement(WidgetTester tester, Finder finder, { required AxisDirection gestureDirection, double initialOffsetFactor = 0.0 }) async {
   Offset delta;
   switch (gestureDirection) {
@@ -151,6 +180,20 @@ Future<void> dismissItem(
 
   await mechanism(tester, itemFinder, gestureDirection: gestureDirection);
   await tester.pumpAndSettle();
+}
+
+Future<void> dragItem(
+    WidgetTester tester,
+    int item, {
+      required AxisDirection gestureDirection,
+      required double amount,
+    }) async {
+  assert(gestureDirection != null);
+  final Finder itemFinder = find.text(item.toString());
+  expect(itemFinder, findsOneWidget);
+
+  await dragElement(tester, itemFinder, gestureDirection: gestureDirection, amount: amount);
+  await tester.pump();
 }
 
 Future<void> checkFlingItemBeforeMovementEnd(
@@ -1052,5 +1095,59 @@ void main() {
     await dismissItem(tester, 0, gestureDirection: AxisDirection.up);
     expect(controller.offset, 100.0);
     controller.dispose();
+  });
+
+  testWidgets('onUpdate', (WidgetTester tester) async {
+    await tester.pumpWidget(buildTest(
+      scrollDirection: Axis.horizontal,
+    ));
+    expect(dismissedItems, isEmpty);
+
+    // Unsuccessful dismiss, fractional progress reported
+    await dragItem(tester, 0, gestureDirection: AxisDirection.right, amount: 20);
+    expect(reportedDismissUpdateProgress, 0.2);
+
+    // Successful dismiss therefore threshold has been reached
+    await dismissItem(tester, 0, mechanism: flingElement, gestureDirection: AxisDirection.left);
+    expect(find.text('0'), findsNothing);
+    expect(dismissedItems, equals(<int>[0]));
+    expect(reportedDismissUpdateReachedDirection, DismissDirection.endToStart);
+    expect(reportedDismissUpdateReached, true);
+    expect(reportedDismissUpdatePreviousReached, true);
+    expect(reportedDismissUpdateProgress, 1.0);
+
+    // Unsuccessful dismiss, threshold has not been reached
+    await checkFlingItemAfterMovement(tester, 1, gestureDirection: AxisDirection.right);
+    expect(find.text('1'), findsOneWidget);
+    expect(dismissedItems, equals(<int>[0]));
+    expect(reportedDismissUpdateReachedDirection, DismissDirection.startToEnd);
+    expect(reportedDismissUpdateReached, false);
+    expect(reportedDismissUpdatePreviousReached, false);
+    expect(reportedDismissUpdateProgress, 0.0);
+
+    // Another successful dismiss from another direction
+    await dismissItem(tester, 1, mechanism: flingElement, gestureDirection: AxisDirection.right);
+    expect(find.text('1'), findsNothing);
+    expect(dismissedItems, equals(<int>[0, 1]));
+    expect(reportedDismissUpdateReachedDirection, DismissDirection.startToEnd);
+    expect(reportedDismissUpdateReached, true);
+    expect(reportedDismissUpdatePreviousReached, true);
+    expect(reportedDismissUpdateProgress, 1.0);
+
+    await tester.pumpWidget(buildTest(
+      scrollDirection: Axis.horizontal,
+      confirmDismiss: (BuildContext context, DismissDirection dismissDirection) {
+        return Future<bool>.value(false);
+      },
+    ));
+
+    // Threshold has been reached but dismiss was not confirmed
+    await dismissItem(tester, 2, mechanism: flingElement, gestureDirection: AxisDirection.right);
+    expect(find.text('2'), findsOneWidget);
+    expect(dismissedItems, equals(<int>[0, 1]));
+    expect(reportedDismissUpdateReachedDirection, DismissDirection.startToEnd);
+    expect(reportedDismissUpdateReached, false);
+    expect(reportedDismissUpdatePreviousReached, false);
+    expect(reportedDismissUpdateProgress, 0.0);
   });
 }

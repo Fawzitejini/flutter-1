@@ -156,22 +156,20 @@ class TooltipThemeData with Diagnosticable {
   }
 
   @override
-  int get hashCode {
-    return hashValues(
-      height,
-      padding,
-      margin,
-      verticalOffset,
-      preferBelow,
-      excludeFromSemantics,
-      decoration,
-      textStyle,
-      waitDuration,
-      showDuration,
-      triggerMode,
-      enableFeedback
-    );
-  }
+  int get hashCode => Object.hash(
+    height,
+    padding,
+    margin,
+    verticalOffset,
+    preferBelow,
+    excludeFromSemantics,
+    decoration,
+    textStyle,
+    waitDuration,
+    showDuration,
+    triggerMode,
+    enableFeedback,
+  );
 
   @override
   bool operator==(Object other) {
@@ -242,6 +240,10 @@ class TooltipThemeData with Diagnosticable {
 /// )
 /// ```
 /// {@end-tool}
+///
+/// See also:
+///
+///  * [TooltipVisibility], which can be used to visually disable descendant [Tooltip]s.
 class TooltipTheme extends InheritedTheme {
   /// Creates a tooltip theme that controls the configurations for
   /// [Tooltip].

@@ -14,6 +14,7 @@ import 'colors.dart';
 import 'feedback.dart';
 import 'theme.dart';
 import 'tooltip_theme.dart';
+import 'tooltip_visibility.dart';
 
 /// A material design tooltip.
 ///
@@ -69,6 +70,7 @@ import 'tooltip_theme.dart';
 ///
 ///  * <https://material.io/design/components/tooltips.html>
 ///  * [TooltipTheme] or [ThemeData.tooltipTheme]
+///  * [TooltipVisibility]
 class Tooltip extends StatefulWidget {
   /// Creates a tooltip.
   ///
@@ -327,6 +329,7 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
   late bool enableFeedback;
   late bool _isConcealed;
   late bool _forceRemoval;
+  late bool _visible;
 
   /// The plain text message for this tooltip.
   ///
@@ -338,7 +341,7 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
     super.initState();
     _isConcealed = false;
     _forceRemoval = false;
-    _mouseIsConnected = RendererBinding.instance!.mouseTracker.mouseIsConnected;
+    _mouseIsConnected = RendererBinding.instance.mouseTracker.mouseIsConnected;
     _controller = AnimationController(
       duration: _fadeInDuration,
       reverseDuration: _fadeOutDuration,
@@ -346,10 +349,16 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
     )
       ..addStatusListener(_handleStatusChanged);
     // Listen to see when a mouse is added.
-    RendererBinding.instance!.mouseTracker.addListener(_handleMouseTrackerChange);
+    RendererBinding.instance.mouseTracker.addListener(_handleMouseTrackerChange);
     // Listen to global pointer events so that we can hide a tooltip immediately
     // if some other control is clicked on.
-    GestureBinding.instance!.pointerRouter.addGlobalRoute(_handlePointerEvent);
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_handlePointerEvent);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _visible = TooltipVisibility.of(context);
   }
 
   // https://material.io/components/tooltips#specs
@@ -400,7 +409,7 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
     if (!mounted) {
       return;
     }
-    final bool mouseIsConnected = RendererBinding.instance!.mouseTracker.mouseIsConnected;
+    final bool mouseIsConnected = RendererBinding.instance.mouseTracker.mouseIsConnected;
     if (mouseIsConnected != _mouseIsConnected) {
       setState(() {
         _mouseIsConnected = mouseIsConnected;
@@ -483,8 +492,11 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
 
   /// Shows the tooltip if it is not already visible.
   ///
-  /// Returns `false` when the tooltip was already visible.
+  /// Returns `false` when the tooltip shouldn't be shown or when the tooltip
+  /// was already visible.
   bool ensureTooltipVisible() {
+    if (!_visible)
+      return false;
     _showTimer?.cancel();
     _showTimer = null;
     _forceRemoval = false;
@@ -510,12 +522,16 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
   static final Set<_TooltipState> _mouseIn = <_TooltipState>{};
 
   void _handleMouseEnter() {
-    _showTooltip();
+    if (mounted) {
+      _showTooltip();
+    }
   }
 
   void _handleMouseExit({bool immediately = false}) {
-    // If the tip is currently covered, we can just remove it without waiting.
-    _dismissTooltip(immediately: _isConcealed || immediately);
+    if (mounted) {
+      // If the tip is currently covered, we can just remove it without waiting.
+      _dismissTooltip(immediately: _isConcealed || immediately);
+    }
   }
 
   void _createNewEntry() {
@@ -606,8 +622,8 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
 
   @override
   void dispose() {
-    GestureBinding.instance!.pointerRouter.removeGlobalRoute(_handlePointerEvent);
-    RendererBinding.instance!.mouseTracker.removeListener(_handleMouseTrackerChange);
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_handlePointerEvent);
+    RendererBinding.instance.mouseTracker.removeListener(_handleMouseTrackerChange);
     _removeEntry();
     _controller.dispose();
     super.dispose();
@@ -671,27 +687,31 @@ class _TooltipState extends State<Tooltip> with SingleTickerProviderStateMixin {
     triggerMode = widget.triggerMode ?? tooltipTheme.triggerMode ?? _defaultTriggerMode;
     enableFeedback = widget.enableFeedback ?? tooltipTheme.enableFeedback ?? _defaultEnableFeedback;
 
-    Widget result = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onLongPress: (triggerMode == TooltipTriggerMode.longPress) ?
-        _handlePress : null,
-      onTap: (triggerMode == TooltipTriggerMode.tap) ? _handlePress : null,
-      excludeFromSemantics: true,
-      child: Semantics(
-        label: excludeFromSemantics
-            ? null
-            : _tooltipMessage,
-        child: widget.child,
-      ),
+    Widget result = Semantics(
+      label: excludeFromSemantics
+          ? null
+          : _tooltipMessage,
+      child: widget.child,
     );
 
-    // Only check for hovering if there is a mouse connected.
-    if (_mouseIsConnected) {
-      result = MouseRegion(
-        onEnter: (_) => _handleMouseEnter(),
-        onExit: (_) => _handleMouseExit(),
+    // Only check for gestures if tooltip should be visible.
+    if (_visible) {
+      result = GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: (triggerMode == TooltipTriggerMode.longPress) ?
+        _handlePress : null,
+        onTap: (triggerMode == TooltipTriggerMode.tap) ? _handlePress : null,
+        excludeFromSemantics: true,
         child: result,
       );
+      // Only check for hovering if there is a mouse connected.
+      if (_mouseIsConnected) {
+        result = MouseRegion(
+          onEnter: (_) => _handleMouseEnter(),
+          onExit: (_) => _handleMouseExit(),
+          child: result,
+        );
+      }
     }
 
     return result;

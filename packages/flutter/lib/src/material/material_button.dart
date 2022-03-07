@@ -131,6 +131,8 @@ class MaterialButton extends StatelessWidget {
   final ValueChanged<bool>? onHighlightChanged;
 
   /// {@macro flutter.material.RawMaterialButton.mouseCursor}
+  ///
+  /// If this property is null, [MaterialStateMouseCursor.clickable] will be used.
   final MouseCursor? mouseCursor;
 
   /// Defines the button's base colors, and the defaults for the button's minimum
@@ -455,9 +457,15 @@ class MaterialButton extends StatelessWidget {
   }
 }
 
-/// The type of [MaterialButton]s created with [RaisedButton.icon], [FlatButton.icon],
-/// and [OutlineButton.icon].
+/// The type of [MaterialButton]s created with RaisedButton.icon, FlatButton.icon,
+/// and OutlineButton.icon.
 ///
 /// This mixin only exists to give the "label and icon" button widgets a distinct
 /// type for the sake of [ButtonTheme].
+@Deprecated(
+  'This was used to differentiate types of FlatButton, RaisedButton, and OutlineButton in ButtonTheme. '
+  'These buttons have been replaced with TextButton, ElevatedButton, and OutlinedButton, each of which have their own respective themes now. '
+  'Use one of these button classes instead. '
+  'This feature was deprecated after v2.11.0-0.0.pre.',
+)
 mixin MaterialButtonWithIconMixin { }

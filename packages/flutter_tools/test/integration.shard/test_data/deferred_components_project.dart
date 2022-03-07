@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// @dart = 2.8
-
 import '../../src/common.dart';
 import 'deferred_components_config.dart';
 import 'project.dart';
@@ -84,7 +82,7 @@ class BasicDeferredComponentsConfig extends DeferredComponentsConfig {
   ''';
 
   @override
-  String get deferredComponentsGolden => r'''
+  String? get deferredComponentsGolden => r'''
   loading-units:
     - id: 2
       libraries:
@@ -177,7 +175,8 @@ class BasicDeferredComponentsConfig extends DeferredComponentsConfig {
   apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
   android {
-      compileSdkVersion 30
+      compileSdkVersion flutter.compileSdkVersion
+      ndkVersion flutter.ndkVersion
 
       sourceSets {
           main.java.srcDirs += 'src/main/kotlin'
@@ -190,8 +189,8 @@ class BasicDeferredComponentsConfig extends DeferredComponentsConfig {
       defaultConfig {
           // Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
           applicationId "ninja.qian.splitaottest1"
-          minSdkVersion 16
-          targetSdkVersion 30
+          minSdkVersion flutter.minSdkVersion
+          targetSdkVersion flutter.targetSdkVersion
           versionCode flutterVersionCode.toInteger()
           versionName flutterVersionName
       }
@@ -550,7 +549,7 @@ class BasicDeferredComponentsConfig extends DeferredComponentsConfig {
     <!-- Theme applied to the Android Window while the process is starting -->
     <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <!-- Show a splash screen on the activity. Automatically removed when
-             Flutter draws its first frame -->
+             the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
     <!-- Theme applied to the Android Window as soon as the process has started.
@@ -604,7 +603,7 @@ class NoAndroidDynamicFeatureModuleDeferredComponentsConfig extends BasicDeferre
 /// Missing golden
 class NoGoldenDeferredComponentsConfig extends BasicDeferredComponentsConfig {
   @override
-  String get deferredComponentsGolden => null;
+  String? get deferredComponentsGolden => null;
 }
 
 /// Missing golden

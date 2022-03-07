@@ -703,7 +703,7 @@ class _FakeComparator implements GoldenFileComparator {
       case _ComparatorBehavior.returnFalse:
         return Future<bool>.value(false);
       case _ComparatorBehavior.throwTestFailure:
-        throw TestFailure('fake message');
+        fail('fake message');
     }
   }
 
@@ -738,5 +738,5 @@ class _CustomColor extends Color {
   bool operator ==(Object other) => isEqual ?? super == other;
 
   @override
-  int get hashCode => hashValues(super.hashCode, isEqual);
+  int get hashCode => Object.hash(super.hashCode, isEqual);
 }

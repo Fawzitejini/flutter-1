@@ -148,7 +148,7 @@ class VMServiceFlutterDriver extends FlutterDriver {
           return vms.Success();
         } else {
           // Failed to resume due to another reason. Fail hard.
-          throw e;
+          throw e; // ignore: only_throw_errors, proxying the error from upstream.
         }
       });
     }
@@ -321,7 +321,7 @@ class VMServiceFlutterDriver extends FlutterDriver {
         stackTrace,
       );
     }
-    if ((response['isError'] as bool?) == true)
+    if ((response['isError'] as bool?) ?? false)
       throw DriverError('Error in Flutter application: ${response['response']}');
     return response['response'] as Map<String, dynamic>;
   }
@@ -564,6 +564,8 @@ Future<vms.VmService> _waitAndConnect(String url, Map<String, dynamic>? headers)
       await service.getVersion();
       return service;
     } catch (e) {
+      // We should not be catching all errors arbitrarily here, this might hide real errors.
+      // TODO(ianh): Determine which exceptions to catch here.
       await socket?.close();
       if (attempts > 5) {
         _log('It is taking an unusually long time to connect to the VM...');

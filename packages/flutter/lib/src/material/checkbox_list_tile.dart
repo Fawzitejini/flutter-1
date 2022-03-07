@@ -137,7 +137,9 @@ class CheckboxListTile extends StatelessWidget {
     this.contentPadding,
     this.tristate = false,
     this.shape,
+    this.checkboxShape,
     this.selectedTileColor,
+    this.side,
     this.visualDensity,
     this.focusNode,
     this.enableFeedback,
@@ -214,7 +216,7 @@ class CheckboxListTile extends StatelessWidget {
 
   /// Whether this list tile is part of a vertically dense list.
   ///
-  /// If this property is null then its value is based on [ListTileTheme.dense].
+  /// If this property is null then its value is based on [ListTileThemeData.dense].
   final bool? dense;
 
   /// Whether to render icons and text in the [activeColor].
@@ -252,11 +254,27 @@ class CheckboxListTile extends StatelessWidget {
   /// If tristate is false (the default), [value] must not be null.
   final bool tristate;
 
-  /// {@macro flutter.material.ListTileTheme.shape}
+  /// {@macro flutter.material.ListTile.shape}
   final ShapeBorder? shape;
+
+  /// {@macro flutter.material.checkbox.shape}
+  ///
+  /// If this property is null then [CheckboxThemeData.shape] of [ThemeData.checkboxTheme]
+  /// is used. If that's null then the shape will be a [RoundedRectangleBorder]
+  /// with a circular corner radius of 1.0.
+  final OutlinedBorder? checkboxShape;
 
   /// If non-null, defines the background color when [CheckboxListTile.selected] is true.
   final Color? selectedTileColor;
+
+  /// {@macro flutter.material.checkbox.side}
+  ///
+  /// The given value is passed directly to [Checkbox.side].
+  ///
+  /// If this property is null, then [CheckboxThemeData.side] of
+  /// [ThemeData.checkboxTheme] is used. If that is also null, then the side
+  /// will be width 2.
+  final BorderSide? side;
 
   /// Defines how compact the list tile's layout will be.
   ///
@@ -298,6 +316,8 @@ class CheckboxListTile extends StatelessWidget {
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       autofocus: autofocus,
       tristate: tristate,
+      shape: checkboxShape,
+      side: side,
     );
     Widget? leading, trailing;
     switch (controlAffinity) {
